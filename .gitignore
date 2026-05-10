@@ -1,0 +1,12 @@
+.env
+node_modules/
+__pycache__/
+data/*.wav
+data/*.json
+data/*.png
+.next/
+
+# OS/IDE files
+.DS_Store
+.vscode/
+.idea/

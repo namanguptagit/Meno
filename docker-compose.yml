@@ -1,0 +1,66 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: meno
+      POSTGRES_PASSWORD: meno
+      POSTGRES_DB: meno
+    volumes:
+      - meno-pgdata:/var/lib/postgresql/data
+      - ./infra/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+    networks:
+      - meno-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meno"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - meno-net
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file: .env
+    environment:
+      - HOST_DATA_DIR=${PWD}/data
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - meno-whisper-cache:/root/.cache/huggingface
+    networks:
+      - meno-net
+
+  frontend:
+    image: node:20-slim
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3000:3000"
+    env_file: .env
+    depends_on:
+      - backend
+    networks:
+      - meno-net
+
+volumes:
+  meno-pgdata:
+  meno-whisper-cache:
+
+networks:
+  meno-net:
